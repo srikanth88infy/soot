@@ -694,7 +694,6 @@ public class FastHierarchy {
         m.getName(),
         m.getParameterTypes(),
         m.getReturnType(),
-        m.getModifiers(),
         allowAbstract,
         ignoreList);
   }
@@ -720,17 +719,9 @@ public class FastHierarchy {
       String name,
       List<Type> parameterTypes,
       Type returnType,
-      int modifier,
       boolean allowAbstract) {
     return resolveMethod(
-        baseType,
-        declaringClass,
-        name,
-        parameterTypes,
-        returnType,
-        modifier,
-        allowAbstract,
-        new HashSet<>());
+        baseType, declaringClass, name, parameterTypes, returnType, allowAbstract, new HashSet<>());
   }
 
   /**
@@ -758,7 +749,6 @@ public class FastHierarchy {
       String name,
       List<Type> parameterTypes,
       Type returnType,
-      int modifier,
       boolean allowAbstract,
       Set<SootClass> ignoreList) {
     SootClass concreteType = baseType;
@@ -772,7 +762,7 @@ public class FastHierarchy {
 
       candidate = getSignaturePolymorphicMethod(concreteType, name, parameterTypes, returnType);
       if (candidate != null) {
-        if (isVisible(concreteType, declaringClass, modifier)) {
+        if (isVisible(declaringClass, concreteType, candidate.getModifiers())) {
           if (!allowAbstract && candidate.isAbstract()) {
             break;
           }
@@ -806,7 +796,7 @@ public class FastHierarchy {
           SootMethod method =
               getSignaturePolymorphicMethod(iFace, name, parameterTypes, returnType);
 
-          if (method != null && isVisible(iFace, declaringClass, modifier)) {
+          if (method != null && isVisible(declaringClass, iFace, method.getModifiers())) {
             if (!allowAbstract && method.isAbstract()) {
               // abstract method cannot be dispatched
               continue;

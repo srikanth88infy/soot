@@ -121,7 +121,7 @@ public abstract class AbstractASMBackend {
 
     javaVersion = Math.max(javaVersion, minVersion);
 
-    this.javaVersion= AsmUtil.javaToBytecodeVersion(javaVersion);
+    this.javaVersion = AsmUtil.javaToBytecodeVersion(javaVersion);
   }
 
   /**

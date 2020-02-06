@@ -38,6 +38,7 @@ import soot.Scene;
 import soot.Singletons;
 import soot.SootClass;
 import soot.SootMethod;
+import soot.SootMethodRef;
 import soot.Type;
 import soot.options.CGOptions;
 import soot.toolkits.scalar.Pair;
@@ -66,12 +67,12 @@ public class VirtualCalls {
   private final LargeNumberedMap<Type, SmallNumberedMap<SootMethod>> typeToVtbl =
       new LargeNumberedMap<Type, SmallNumberedMap<SootMethod>>(Scene.v().getTypeNumberer());
 
-  public SootMethod resolveSpecial(SootMethod callee, SootMethod container) {
-    return resolveSpecial(callee, container, false);
+  public SootMethod resolveSpecial(SootMethodRef calleeRef, SootMethod container) {
+    return resolveSpecial(calleeRef, container, false);
   }
 
-
-  public SootMethod resolveSpecial(SootMethod callee, SootMethod container, boolean appOnly) {
+  public SootMethod resolveSpecial(SootMethodRef calleeRef, SootMethod container, boolean appOnly) {
+    SootMethod callee = calleeRef.resolve();
     /* cf. JVM spec, invokespecial instruction */
     if (container.getDeclaringClass().getType() != callee.getDeclaringClass().getType()
         && Scene.v()
@@ -84,24 +85,24 @@ public class VirtualCalls {
         // method with a specialinvoke instruction (i.e. do not dispatch to an
         // overwritten version of that method)
         && !callee.getDeclaringClass().isInterface()) {
-      return resolveNonSpecial(container.getDeclaringClass().getType(), callee, appOnly);
+      return resolveNonSpecial(container.getDeclaringClass().getType(), calleeRef, appOnly);
     } else {
       return callee;
     }
   }
 
-  public SootMethod resolveNonSpecial(RefType t, SootMethod callee) {
+  public SootMethod resolveNonSpecial(RefType t, SootMethodRef callee) {
     return resolveNonSpecial(t, callee, false);
   }
 
-  public SootMethod resolveNonSpecial(RefType t, SootMethod callee, boolean appOnly) {
+  public SootMethod resolveNonSpecial(RefType t, SootMethodRef callee, boolean appOnly) {
     SmallNumberedMap<SootMethod> vtbl = typeToVtbl.get(t);
 
     if (vtbl == null) {
       typeToVtbl.put(t, vtbl = new SmallNumberedMap<>());
     }
 
-    NumberedString calleeSubSig = callee.getNumberedSubSignature();
+    NumberedString calleeSubSig = callee.getSubSignature();
     SootMethod ret = vtbl.get(calleeSubSig);
     if (ret != null) {
       return ret;
@@ -121,13 +122,13 @@ public class VirtualCalls {
   }
 
   protected MultiMap<Type, Type> baseToSubTypes = new HashMultiMap<Type, Type>();
-  protected MultiMap<Pair<Type, SootMethod>, Pair<Type, SootMethod>> baseToPossibleSubTypes =
+  protected MultiMap<Pair<Type, SootMethodRef>, Pair<Type, SootMethodRef>> baseToPossibleSubTypes =
       new HashMultiMap<>();
 
   public void resolve(
       Type t,
       Type declaredType,
-      SootMethod callee,
+      SootMethodRef callee,
       SootMethod container,
       ChunkedQueue<SootMethod> targets) {
     resolve(t, declaredType, null, callee, container, targets);
@@ -136,7 +137,7 @@ public class VirtualCalls {
   public void resolve(
       Type t,
       Type declaredType,
-      SootMethod callee,
+      SootMethodRef callee,
       SootMethod container,
       ChunkedQueue<SootMethod> targets,
       boolean appOnly) {
@@ -147,7 +148,7 @@ public class VirtualCalls {
       Type t,
       Type declaredType,
       Type sigType,
-      SootMethod callee,
+      SootMethodRef callee,
       SootMethod container,
       ChunkedQueue<SootMethod> targets) {
     resolve(t, declaredType, sigType, callee, container, targets, false);
@@ -157,7 +158,7 @@ public class VirtualCalls {
       Type t,
       Type declaredType,
       Type sigType,
-      SootMethod callee,
+      SootMethodRef callee,
       SootMethod container,
       ChunkedQueue<SootMethod> targets,
       boolean appOnly) {
@@ -211,7 +212,7 @@ public class VirtualCalls {
   public void resolveSuperType(
       Type t,
       Type declaredType,
-      SootMethod callee,
+      SootMethodRef callee,
       ChunkedQueue<SootMethod> targets,
       boolean appOnly) {
     if (declaredType == null) {
@@ -252,7 +253,7 @@ public class VirtualCalls {
   protected void resolveAnySubType(
       Type declaredType,
       Type sigType,
-      SootMethod callee,
+      SootMethodRef callee,
       SootMethod container,
       ChunkedQueue<SootMethod> targets,
       boolean appOnly,
@@ -310,7 +311,7 @@ public class VirtualCalls {
   protected void resolveLibrarySignature(
       Type declaredType,
       Type sigType,
-      SootMethod callee,
+      SootMethodRef callee,
       SootMethod container,
       ChunkedQueue<SootMethod> targets,
       boolean appOnly,
@@ -318,13 +319,13 @@ public class VirtualCalls {
     FastHierarchy fastHierachy = Scene.v().getOrMakeFastHierarchy();
 
     assert (declaredType instanceof RefType);
-    Pair<Type, SootMethod> pair = new Pair<Type, SootMethod>(base, callee);
+    Pair<Type, SootMethodRef> pair = new Pair<Type, SootMethodRef>(base, callee);
     {
-      Set<Pair<Type, SootMethod>> types = baseToPossibleSubTypes.get(pair);
+      Set<Pair<Type, SootMethodRef>> types = baseToPossibleSubTypes.get(pair);
       // if this type and method has been resolved earlier we can
       // just retrieve the previous result.
       if (types != null) {
-        for (Pair<Type, SootMethod> tuple : types) {
+        for (Pair<Type, SootMethodRef> tuple : types) {
           Type st = tuple.getO1();
           if (!fastHierachy.canStoreType(st, declaredType)) {
             resolve(st, st, sigType, callee, container, targets, appOnly);
@@ -336,7 +337,7 @@ public class VirtualCalls {
       }
     }
 
-    Set<Pair<Type, SootMethod>> types = new HashSet<>();
+    Set<Pair<Type, SootMethodRef>> types = new HashSet<>();
 
     Type declaredReturnType = callee.getReturnType();
     List<Type> declaredParamTypes = callee.getParameterTypes();
@@ -378,12 +379,12 @@ public class VirtualCalls {
               // final classes can not be extended and
               // therefore not used in library client
               if (!sc.isFinal()) {
-                resolve(st, st, sigType, sm, container, targets, appOnly);
-                types.add(new Pair<Type, SootMethod>(st, sm));
+                resolve(st, st, sigType, sm.makeRef(), container, targets, appOnly);
+                types.add(new Pair<Type, SootMethodRef>(st, sm.makeRef()));
               }
             } else {
               resolve(st, declaredType, sigType, callee, container, targets, appOnly);
-              types.add(new Pair<Type, SootMethod>(st, callee));
+              types.add(new Pair<Type, SootMethodRef>(st, callee));
             }
           }
         }

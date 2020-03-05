@@ -286,7 +286,7 @@ public class VirtualCalls {
       Set<Pair<Type, NumberedString>> types = baseToPossibleSubTypes.get(pair);
       // if this type and method has been resolved earlier we can
       // just retrieve the previous result.
-      if (types != null) {
+      if (types != null && !types.isEmpty()) {
         for (Pair<Type, NumberedString> tuple : types) {
           Type st = tuple.getO1();
           if (!fastHierachy.canStoreType(st, declaredType)) {

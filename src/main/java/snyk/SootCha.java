@@ -11,9 +11,7 @@ import soot.util.queue.QueueReader;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 public class SootCha {
@@ -35,6 +33,14 @@ public class SootCha {
 
         Options options = G.v().soot_options_Options();
 
+        // we exclude java internals, same as WALA
+        ImmutableList<String> exclusions = ImmutableList.of("java.", "javax.", "sun.");
+        Options.v().set_exclude(exclusions);
+        Options.v().set_no_bodies_for_excluded(true);
+
+        // this sets the exclusion lists to empty, i.e. we don't exclude anything
+        // options.set_include_all(true);
+
         // we need to add jdk to the classpath, otherwise soot complains
         List<String> javaJars = getAllJREJarsPaths("/Library/Java/JavaVirtualMachines/adoptopenjdk-8.jdk/Contents/Home");
         List<String> classPathList = new ArrayList<>(javaJars);
@@ -46,7 +52,7 @@ public class SootCha {
         // reachable, i.e. all first-party methods are reachable
         options.set_process_dir(ImmutableList.of(firstPartyCodeFolder));
         options.set_soot_classpath(fullClassPath);
-        options.setPhaseOption("cg", "library:signature-resolution");
+        options.setPhaseOption("cg", "library:any-subtype");
         options.setPhaseOption("cg", "all-reachable:true");
 
         // these just make output nice and readable
@@ -55,9 +61,6 @@ public class SootCha {
 
         // should scan classes recursively when creating class hierarchy
         options.set_whole_program(true);
-
-        // this sets the exclusion lists to empty, i.e. we don't exclude anything
-        options.set_include_all(true);
 
         // we don't need this option for 1st party analysis when we analyze all jars (no gluing),
         // but might want it later
@@ -111,6 +114,9 @@ public class SootCha {
         try (FileWriter writer = new FileWriter("soot-cg.txt")) {
             QueueReader<Edge> listener = cg.listener();
 
+            // some edges are repeated, we wont print them multiple times
+            Set<String> alreadyPrinted = new HashSet<>();
+
             while (listener.hasNext()) {
                 Edge next = listener.next();
 
@@ -120,7 +126,11 @@ public class SootCha {
                 String srcString = src.toString();
                 String tgtString = tgt.toString();
 
-                writer.write(" " + srcString + " -> " + tgtString + "\n");
+                String line = " " + srcString + " -> " + tgtString + "\n";
+                if (!alreadyPrinted.contains(line)) {
+                    alreadyPrinted.add(line);
+                    writer.write(line);
+                }
             }
         }
     }

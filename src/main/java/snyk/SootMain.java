@@ -16,6 +16,7 @@ public class SootMain {
             SootPrinters.printCallGraph(callGraphPath, analysisOutput.getCallGraph());
         }
 
+        SootPrinters.printClasses(cla.getReachableClassesFilePath(), analysisOutput.getCallGraph());
         SootPrinters.printMethods(cla.getReachableMethodsFilePath(), analysisOutput.getCallGraph());
 
         System.out.println("All done");

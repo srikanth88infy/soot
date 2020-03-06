@@ -50,10 +50,26 @@ class SootPrinters {
         }
     }
 
-    private static String methodString(MethodOrMethodContext momc) {
-        String functionName = momc.method().getName();
-        String className = momc.method().getDeclaringClass().getName();
-        return className + "." + functionName;
+    static void printClasses(String outputPath, CallGraph cg) throws IOException {
+        try (FileWriter writer = new FileWriter(outputPath)) {
+            QueueReader<Edge> listener = cg.listener();
+
+            Set<String> classes = new HashSet<>();
+
+            while (listener.hasNext()) {
+                Edge next = listener.next();
+
+                String sourceStr = classString(next.getSrc());
+                classes.add(sourceStr);
+
+                String targetStr = classString(next.getTgt());
+                classes.add(targetStr);
+            }
+
+            for (String clazz : classes) {
+                writer.write(clazz + "\n");
+            }
+        }
     }
 
     static void printCallGraph(String outputPath, CallGraph cg) throws IOException {
@@ -79,5 +95,15 @@ class SootPrinters {
                 }
             }
         }
+    }
+
+    private static String methodString(MethodOrMethodContext momc) {
+        String functionName = momc.method().getName();
+        String className = classString(momc);
+        return className + "." + functionName;
+    }
+
+    private static String classString(MethodOrMethodContext momc) {
+        return momc.method().getDeclaringClass().getName();
     }
 }

@@ -26,7 +26,9 @@ class SootCha {
         // options.set_include_all(true);
 
         // we need to add jdk to the classpath, otherwise soot complains
-        List<String> javaJars = getAllJREJarsPaths("/Library/Java/JavaVirtualMachines/adoptopenjdk-8.jdk/Contents/Home");
+        String javaHome = System.getenv("JAVA_HOME").trim();
+
+        List<String> javaJars = getAllJREJarsPaths(javaHome);
         List<String> classPathList = new ArrayList<>(javaJars);
         classPathList.add(suppliedClassPath);
         String fullClassPath = String.join(File.pathSeparator, classPathList);

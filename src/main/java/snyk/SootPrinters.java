@@ -99,11 +99,18 @@ class SootPrinters {
 
     private static String methodString(MethodOrMethodContext momc) {
         String functionName = momc.method().getName();
+        if (functionName.contains("<") && functionName.contains(">")) {
+            // making output compatible with WALA
+            functionName = functionName
+                    .replace("<", "\"<")
+                    .replace(">", ">\"");
+        }
+
         String className = classString(momc);
         return className + "." + functionName;
     }
 
     private static String classString(MethodOrMethodContext momc) {
-        return momc.method().getDeclaringClass().getName();
+        return momc.method().getDeclaringClass().getName().replace(".", "/");
     }
 }

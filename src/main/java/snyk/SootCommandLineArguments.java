@@ -9,7 +9,7 @@ import java.util.Optional;
     private Options options;
 
     private static String CLASSPATH_FILE_PARAMETER_NAME = "classpath";
-    private static String FIRST_PARTY_DIRECTORY = "firstpary";
+    private static String FIRST_PARTY_DIRECTORY = "firstparty";
 
     private static String REACHABLE_METHODS_FILEPATH_PARAMETER_NAME = "methods_out";
     private static String REACHABLE_CLASSES_FILEPATH_PARAMETER_NAME = "classes_out";

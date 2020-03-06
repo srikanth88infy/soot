@@ -2,35 +2,19 @@ package snyk;
 
 import com.google.common.collect.ImmutableList;
 import soot.*;
-import soot.jimple.toolkits.callgraph.CallGraph;
-import soot.jimple.toolkits.callgraph.Edge;
 import soot.options.Options;
-import soot.util.Chain;
-import soot.util.queue.QueueReader;
 
 import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
 import java.util.*;
 import java.util.stream.Collectors;
 
-public class SootCha {
+class SootCha {
 
-    public static void main(String[] args) throws IOException {
-        String classPathFile = args[0];
-        String firstPartyCodeFolder = args[1];
-
-        String suppliedClassPath = ClasspathUtils.getClasspathFromFile(classPathFile);
-
-        CallGraph callGraph = runClassHierarchyAnalysis(firstPartyCodeFolder, suppliedClassPath);
-        printCallGraph(callGraph);
-        System.out.println("Analyzed with soot");
-    }
-
-    private static CallGraph runClassHierarchyAnalysis(
+    static Scene runClassHierarchyAnalysis(
             String firstPartyCodeFolder,
-            String suppliedClassPath) throws IOException {
+            String suppliedClassPath) {
 
+        System.out.println("Running CHA");
         Options options = G.v().soot_options_Options();
 
         // we exclude java internals, same as WALA
@@ -80,11 +64,11 @@ public class SootCha {
         loadAll3rdPartyClasses(scene, suppliedClassPath);
 
         scene.loadNecessaryClasses();
-        printClasses(scene);
-        System.out.println("I printed all the classes");
+        System.out.println("Loaded classes");
 
         PackManager.v().runPacks();
-        return scene.getCallGraph();
+        System.out.println("Finished the analysis");
+        return scene;
     }
 
     private static List<String> getAllJREJarsPaths(String jrePath) {
@@ -110,31 +94,6 @@ public class SootCha {
                 .build();
     }
 
-    private static void printCallGraph(CallGraph cg) throws IOException {
-        try (FileWriter writer = new FileWriter("soot-cg.txt")) {
-            QueueReader<Edge> listener = cg.listener();
-
-            // some edges are repeated, we wont print them multiple times
-            Set<String> alreadyPrinted = new HashSet<>();
-
-            while (listener.hasNext()) {
-                Edge next = listener.next();
-
-                MethodOrMethodContext src = next.getSrc();
-                MethodOrMethodContext tgt = next.getTgt();
-
-                String srcString = src.toString();
-                String tgtString = tgt.toString();
-
-                String line = " " + srcString + " -> " + tgtString + "\n";
-                if (!alreadyPrinted.contains(line)) {
-                    alreadyPrinted.add(line);
-                    writer.write(line);
-                }
-            }
-        }
-    }
-
     // Loads all 3rd-party classes available on the classpath. This is due to a limitation of Soot - by default it
     // would only load classes which are references by the entry points of the analysis (+ JVM classes). As a result,
     // when doing CHA, it could miss implementations which are not directly accessible by root classes (e.g. Spring).
@@ -149,15 +108,4 @@ public class SootCha {
         }
     }
 
-    private static void printClasses(Scene scene) throws IOException {
-        Chain<SootClass> classes = scene.getClasses();
-        //Hierarchy classHierarchy = scene.getActiveHierarchy();
-
-        try (FileWriter writer = new FileWriter("soot-class-hierarchy.txt")) {
-            for (SootClass aClass : classes) {
-                String className = aClass.toString();
-                writer.write(" " + className + "\n");
-            }
-        }
-    }
 }
